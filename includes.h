@@ -1,9 +1,12 @@
 #include <list>
+#include <vector>
+#include <utility>
 #include <cmath>
 #include <ctime>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <float.h>
 #ifdef _WIN32
 #include "includes/dirent.h"
 #else
@@ -13,7 +16,10 @@
 #include <vtkMath.h>
 #include <vtkImageFlip.h>
 #include <vtkPolyLine.h>
+#include <vtkLine.h>
 #include <vtkCellArray.h>
+#include <vtkCell.h>
+#include <vtkIdList.h>
 #include <vtkTypeInt64Array.h>
 #include <vtkImageData.h>
 #include <vtkDataArray.h>
@@ -73,6 +79,8 @@
 	    int _nsigma;
 		bool _adaptive_threshold;
     	int _nblks;
+		bool _z_adaptive;
+		int _z_block_size;
 
 	    std::vector<attribute> attributes;
 	};
