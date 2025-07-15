@@ -1,3 +1,30 @@
+# Build directories
 /build/
+/.qt/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Compiled binaries
+MitoGraph
+*.exe
+*.o
+
+# System files
 .DS_Store
 ._*
+
+# Backup files
+*.backup
+
+# R history
+.Rhistory
+
+# Data files (uncomment if you want to ignore data)
+# data/
+
+# VTK package manager
+vcpkg/

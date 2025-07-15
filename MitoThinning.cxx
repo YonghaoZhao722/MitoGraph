@@ -185,7 +185,7 @@ void SavePolyData(vtkSmartPointer<vtkPolyData> PolyData, const char FileName[]) 
 void ExportGraphFiles(vtkSmartPointer<vtkPolyData> PolyData, long int nnodes, long int *ValidId, const char Prefix[]) {
     
     #ifdef DEBUG
-        printf("Saving .coo file...\n");
+        // Debug output removed
     #endif
 
     char _fullpath[256];
@@ -230,9 +230,9 @@ void ExportNodes(vtkSmartPointer<vtkPolyData> PolyData, long int nnodes, long in
     
     #ifdef DEBUG
         if (_export_nodes_label) {
-            printf("Exporting nodes and their labels...\n");
+            // Debug output removed
         } else {
-            printf("Exporting nodes...\n");
+            // Debug output removed
         }
     #endif
 
@@ -248,7 +248,7 @@ void ExportNodes(vtkSmartPointer<vtkPolyData> PolyData, long int nnodes, long in
             Points -> GetPoint(node,r);
 
             #ifdef DEBUG
-                printf("Node = %d\n",(int)node);
+                // Debug output removed
             #endif
         
             vtkSmartPointer<vtkSphereSource> Node = vtkSmartPointer<vtkSphereSource>::New();
@@ -1006,7 +1006,7 @@ vtkSmartPointer<vtkPolyData> Skeletonization(vtkSmartPointer<vtkImageData> Image
 
     #ifdef DEBUG
         printf("\t#Edges after filtering = %lld\n",PolyData->GetNumberOfCells());
-        printf("Skeletonization done!\n");
+        // Debug output removed
     #endif
 
     SmoothEdgesCoordinates(PolyData,3);

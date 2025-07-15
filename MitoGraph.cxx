@@ -277,7 +277,7 @@ int ScanFolderForThisExtension(std::string _root, std::string ext, std::vector<s
         ext_p = (int)_dir_name.find(ext);
         if (ext_p > 0) {
             #ifdef DEBUG
-                printf("File found: %s\n",_dir_name.c_str());
+                // Debug output removed
             #endif
             List -> push_back(std::string(_root)+_dir_name.substr(0,ext_p));
         }
@@ -296,7 +296,7 @@ int ScanFolderForThisExtension(std::string _root, std::string ext, std::vector<s
 void ExportMaxProjection(vtkSmartPointer<vtkImageData> Image, const char FileName[]) {
 
     #ifdef DEBUG
-        printf("Saving Max projection...\n");
+        // Debug output removed
     #endif
 
     int *Dim = Image -> GetDimensions();
@@ -333,7 +333,7 @@ void ExportMaxProjection(vtkSmartPointer<vtkImageData> Image, const char FileNam
     PNGWriter -> Write();
 
     #ifdef DEBUG
-        printf("File Saved!\n");
+        // Debug output removed
     #endif
 
 }
@@ -394,7 +394,7 @@ void ExportDetailedMaxProjection(_mitoObject *mitoObject) {
         int *Dim = Image -> GetDimensions();
         
         #ifdef DEBUG
-            printf("Dim = [%d,%d,%d]\n",Dim[0],Dim[1],Dim[2]);
+            // Debug output removed
         #endif
 
         // Surface Bounds
@@ -404,7 +404,7 @@ void ExportDetailedMaxProjection(_mitoObject *mitoObject) {
         int zf = round(Bounds[5]/_dz); zf += (zi<Dim[2]-1) ? 1 : 0;
 
         #ifdef DEBUG
-            printf("Z = [%d,%d]\n",zi,zf);
+            // Debug output removed
         #endif
 
         // Plane
@@ -421,7 +421,7 @@ void ExportDetailedMaxProjection(_mitoObject *mitoObject) {
         MaxPArray -> FillComponent(0,range[0]);
 
         #ifdef DEBUG
-            printf("Range = [%f,%f]\n",range[0],range[1]);
+            // Debug output removed
         #endif
 
         //Max Projection bottom
@@ -531,12 +531,12 @@ void ExportDetailedMaxProjection(_mitoObject *mitoObject) {
         PNGWriter -> SetInputData(Plane);
         PNGWriter -> Write();
 
-        printf("%s\t[done]\n",mitoObject->FileName.c_str());
+        // Debug output removed
 
     }
 
     #ifdef DEBUG
-        printf("File Saved!\n");
+        // Debug output removed
     #endif
 
 }
@@ -555,7 +555,7 @@ void DumpResults(const _mitoObject mitoObject) {
     fclose(findv);
 
     // Also printing on the screen
-    printf("%s\t[done]\n",mitoObject.FileName.c_str());
+    // Debug output removed
 
 }
 
@@ -610,7 +610,7 @@ vtkSmartPointer<vtkImageData> Convert16To8bit(vtkSmartPointer<vtkImageData> Imag
     } else if (Image -> GetScalarType() == VTK_UNSIGNED_SHORT) {
 
         #ifdef DEBUG
-            printf("Converting from 16-bit to 8-bit...\n");
+            // Debug output removed
         #endif
 
         vtkSmartPointer<vtkImageData> Image8 = vtkImageData::New();
@@ -622,7 +622,7 @@ vtkSmartPointer<vtkImageData> Convert16To8bit(vtkSmartPointer<vtkImageData> Imag
         ScalarsShort -> GetRange(range);
 
         #ifdef DEBUG
-            printf("\tOriginal intensities range: [%d-%d]\n",(int)range[0],(int)range[1]);
+            // Debug output removed
         #endif
 
         vtkSmartPointer<vtkUnsignedCharArray> ScalarsChar = vtkSmartPointer<vtkUnsignedCharArray>::New();
@@ -657,9 +657,7 @@ vtkSmartPointer<vtkImageData> Convert16To8bitZAdaptive(vtkSmartPointer<vtkImageD
     // 16-Bit images
     } else if (Image -> GetScalarType() == VTK_UNSIGNED_SHORT) {
 
-        #ifdef DEBUG
-            printf("Converting from 16-bit to 8-bit with Z-adaptive normalization...\n");
-        #endif
+            // Debug output removed
 
         int *Dim = Image -> GetDimensions();
         vtkSmartPointer<vtkImageData> Image8 = vtkImageData::New();
@@ -685,9 +683,7 @@ vtkSmartPointer<vtkImageData> Convert16To8bitZAdaptive(vtkSmartPointer<vtkImageD
                 }
             }
             
-            #ifdef DEBUG
-                printf("\tZ-plane %d: range [%1.1f-%1.1f]\n", z, z_min, z_max);
-            #endif
+            // Debug output removed
             
             // Normalize this z-plane
             double z_range = z_max - z_min;
@@ -733,9 +729,7 @@ vtkSmartPointer<vtkImageData> Convert16To8bitZAdaptiveBlocks(vtkSmartPointer<vtk
     // 16-Bit images
     if (Image -> GetScalarType() == VTK_UNSIGNED_SHORT) {
 
-        #ifdef DEBUG
-            printf("Converting from 16-bit to 8-bit with Z-block adaptive normalization (block size: %d)...\n", block_size);
-        #endif
+            // Debug output removed
 
         int *Dim = Image -> GetDimensions();
         vtkSmartPointer<vtkImageData> Image8 = vtkImageData::New();
@@ -780,9 +774,7 @@ vtkSmartPointer<vtkImageData> Convert16To8bitZAdaptiveBlocks(vtkSmartPointer<vtk
                 block_range = global_range_size;
             }
             
-            #ifdef DEBUG
-                printf("\tZ-block %d-%d: range [%1.1f-%1.1f]\n", z_start, z_end-1, block_min, block_max);
-            #endif
+                    // Debug output removed
             
             // Normalize this z-block
             if (block_range > 0) {
@@ -832,9 +824,7 @@ vtkSmartPointer<vtkImageData> Convert16To8bitZAdaptiveGentle(vtkSmartPointer<vtk
     // 16-Bit images
     } else if (Image -> GetScalarType() == VTK_UNSIGNED_SHORT) {
 
-        #ifdef DEBUG
-            printf("Converting from 16-bit to 8-bit with gentle Z-adaptive enhancement...\n");
-        #endif
+            // Debug output removed
 
         int *Dim = Image -> GetDimensions();
         vtkSmartPointer<vtkImageData> Image8 = vtkImageData::New();
@@ -883,7 +873,15 @@ vtkSmartPointer<vtkImageData> Convert16To8bitZAdaptiveGentle(vtkSmartPointer<vtk
             double z_range = z_max - z_min;
             if (z_range > 0 && z_mean < 100) { // Only enhance dimmer planes
                 
-                double enhancement_factor = 1.5; // Gentle enhancement
+                // More aggressive enhancement for very dark planes
+                double enhancement_factor;
+                if (z_mean < 20) {
+                    enhancement_factor = 3.0; // Very aggressive for extremely dark planes
+                } else if (z_mean < 50) {
+                    enhancement_factor = 2.5; // More aggressive for very dark planes
+                } else {
+                    enhancement_factor = 1.5; // Gentle enhancement for moderately dark planes
+                }
                 
                 for (int x = 0; x < Dim[0]; x++) {
                     for (int y = 0; y < Dim[1]; y++) {
@@ -902,9 +900,7 @@ vtkSmartPointer<vtkImageData> Convert16To8bitZAdaptiveGentle(vtkSmartPointer<vtk
                     }
                 }
                 
-                #ifdef DEBUG
-                    printf("\tEnhanced dimmer z-plane %d (mean=%1.1f)\n", z, z_mean);
-                #endif
+                // Debug output removed
             }
         }
         
@@ -958,9 +954,7 @@ vtkSmartPointer<vtkImageData> BinarizeAndConvertDoubleToChar(vtkSmartPointer<vtk
 
 vtkSmartPointer<vtkImageData> BinarizeAndConvertDoubleToCharZAdaptive(vtkSmartPointer<vtkImageData> Image, double base_threshold) {
 
-    #ifdef DEBUG
-        printf("Applying Z-adaptive binarization...\n");
-    #endif
+    // Debug output removed
 
     int *Dim = Image -> GetDimensions();
     vtkSmartPointer<vtkImageData> Image8 = vtkImageData::New();
@@ -1014,10 +1008,7 @@ vtkSmartPointer<vtkImageData> BinarizeAndConvertDoubleToCharZAdaptive(vtkSmartPo
         if (z_threshold > z_max) z_threshold = z_max * 0.8;
         if (z_threshold < z_min) z_threshold = z_min + (z_max - z_min) * 0.1;
         
-        #ifdef DEBUG
-            printf("\tZ-plane %d: mean=%1.3f, std=%1.3f, threshold=%1.3f\n", 
-                   z, z_mean, z_std, z_threshold);
-        #endif
+                // Debug output removed
         
         // Apply threshold to this z-plane
         for (int x = 0; x < Dim[0]; x++) {
@@ -1042,9 +1033,7 @@ vtkSmartPointer<vtkImageData> BinarizeAndConvertDoubleToCharZAdaptive(vtkSmartPo
 
 vtkSmartPointer<vtkImageData> BinarizeAndConvertDoubleToCharZAdaptiveConservative(vtkSmartPointer<vtkImageData> Image, double base_threshold, int z_block_size) {
 
-    #ifdef DEBUG
-        printf("Applying conservative Z-adaptive binarization (block size: %d)...\n", z_block_size);
-    #endif
+    // Debug output removed
 
     int *Dim = Image -> GetDimensions();
     vtkSmartPointer<vtkImageData> Image8 = vtkImageData::New();
@@ -1101,40 +1090,79 @@ vtkSmartPointer<vtkImageData> BinarizeAndConvertDoubleToCharZAdaptiveConservativ
         }
         block_std = sqrt(var_sum / block_pixels);
         
-        // Improved adaptive threshold that gives user's threshold meaningful control
-        // Start with user's threshold as the base, then make adaptive adjustments
+        // Improved adaptive threshold that properly maps user's threshold to block statistics
+        // The user's threshold should represent a percentile of the local intensity distribution
         
-        // Calculate what the user's threshold would be in this block's value range
         double block_range = block_max - block_min;
-        double user_threshold_in_block = block_min + (block_range * (base_threshold / 1.0));
         
-        // Make conservative adaptive adjustment: only adjust up to ±0.5 std deviations
-        double adaptive_adjustment = block_std * 0.5;
-        
-        // For dimmer blocks (mean < 50% of range), be slightly more sensitive
-        // For brighter blocks (mean > 50% of range), be slightly less sensitive
-        double brightness_factor = (block_mean - block_min) / block_range;
-        if (brightness_factor < 0.5) {
-            // Dimmer block - reduce threshold slightly (more sensitive)
-            adaptive_adjustment *= -0.3;
-        } else {
-            // Brighter block - increase threshold slightly (less sensitive)
-            adaptive_adjustment *= 0.3;
+        // Guard against empty or uniform blocks
+        if (block_range < 1e-6) {
+            // If block is uniform, use global threshold as-is
+            block_range = 1.0;
         }
         
-        double adaptive_threshold = user_threshold_in_block + adaptive_adjustment;
+        // Enhanced threshold mapping with improved dark region sensitivity
+        double brightness_factor = (block_mean - block_min) / block_range;
+        double cv = (block_mean > 0) ? (block_std / block_mean) : 0.0;
         
-        // Ensure reasonable bounds - don't deviate too far from user's intent
-        double min_threshold = block_min + (block_range * (base_threshold * 0.5));
-        double max_threshold = block_min + (block_range * (base_threshold * 2.0));
+        // Detect very dark regions that need special handling
+        bool is_very_dark_region = (block_mean < (global_range[1] - global_range[0]) * 0.1) || (brightness_factor < 0.2);
+        
+        double adaptive_threshold;
+        
+        if (is_very_dark_region) {
+            // Use old z-adaptive approach for very dark regions - more sensitive
+            // Statistical threshold: mean + std scaled by user threshold
+            adaptive_threshold = block_mean + (block_std * base_threshold * 2.0);
+            
+            // For extremely dark regions, be even more aggressive
+            if (block_mean < (global_range[1] - global_range[0]) * 0.05) {
+                adaptive_threshold = block_mean + (block_std * base_threshold * 1.5);
+            }
+            
+            // Ensure we don't go below meaningful threshold for dark regions
+            double dark_min_threshold = block_min + (block_range * 0.01); // Very low threshold
+            if (adaptive_threshold < dark_min_threshold) adaptive_threshold = dark_min_threshold;
+            
+        } else {
+            // Use improved mapping for normal/bright regions
+            double user_threshold_mapped = block_min + (block_range * base_threshold);
+            
+            // Apply adaptive adjustment based on block characteristics
+            double adaptive_adjustment = 0.0;
+            
+            // For high-noise blocks (CV > 0.5), be more conservative (increase threshold)
+            // For low-noise blocks (CV < 0.3), be more sensitive (decrease threshold)
+            if (cv > 0.5) {
+                adaptive_adjustment = block_std * 0.2; // Less sensitive for noisy blocks
+            } else if (cv < 0.3) {
+                adaptive_adjustment = -block_std * 0.1; // More sensitive for clean blocks
+            }
+            
+            // Additional adjustment for moderately dim regions
+            if (brightness_factor < 0.5) {
+                adaptive_adjustment -= block_std * 0.1;
+            }
+            
+            adaptive_threshold = user_threshold_mapped + adaptive_adjustment;
+        }
+        
+        // Set reasonable bounds based on region type
+        double min_threshold, max_threshold;
+        if (is_very_dark_region) {
+            // More permissive bounds for dark regions
+            min_threshold = block_min + (block_range * 0.01);
+            max_threshold = block_mean + (block_std * 3.0);
+        } else {
+            // Standard bounds for normal regions
+            min_threshold = block_min + (block_range * (base_threshold * 0.3));
+            max_threshold = block_min + (block_range * (base_threshold * 3.0));
+        }
         
         if (adaptive_threshold < min_threshold) adaptive_threshold = min_threshold;
         if (adaptive_threshold > max_threshold) adaptive_threshold = max_threshold;
         
-        #ifdef DEBUG
-            printf("\tZ-block %d-%d: mean=%1.3f, std=%1.3f, user_threshold=%1.3f, user_mapped=%1.3f, adaptive_threshold=%1.3f\n", 
-                   z_start, z_end-1, block_mean, block_std, base_threshold, user_threshold_in_block, adaptive_threshold);
-        #endif
+        // Debug output removed
         
         // Apply threshold to this z-block
         for (int z = z_start; z < z_end; z++) {
@@ -1487,9 +1515,7 @@ void FillHoles(vtkSmartPointer<vtkImageData> ImageData) {
 =================================================================*/
 
 void GetImageDerivativeDiscrete(vtkSmartPointer<vtkDataArray> Image, int *dim, char direction, vtkSmartPointer<vtkFloatArray> Derivative) {
-    #ifdef DEBUG
-        printf("Calculating Image Derivatives (Discrete)...\n");
-    #endif
+    // Debug output removed
 
     double d, f1, f2;
     vtkIdType i, j, k;
@@ -1568,17 +1594,13 @@ void GetImageDerivativeDiscrete(vtkSmartPointer<vtkDataArray> Image, int *dim, c
 }
 
 void GetHessianEigenvaluesDiscrete(double sigma, vtkSmartPointer<vtkImageData> Image, vtkSmartPointer<vtkDoubleArray> L1, vtkSmartPointer<vtkDoubleArray> L2, vtkSmartPointer<vtkDoubleArray> L3) {
-    #ifdef DEBUG
-        printf("Calculating Hessian Eigeinvalues (Discrete)...\n");
-    #endif
+    // Debug output removed
 
     int *Dim = Image -> GetDimensions();
     vtkIdType id, N = Image -> GetNumberOfPoints();
     double H[3][3], Eva[3], Eve[3][3], dxx, dyy, dzz, dxy, dxz, dyz, l1, l2, l3, frobnorm;
 
-    #ifdef DEBUG
-        printf("Calculating Gaussian Convolution...\n");
-    #endif
+    // Debug output removed
 
     vtkSmartPointer<vtkImageGaussianSmooth> Gauss = vtkSmartPointer<vtkImageGaussianSmooth>::New();
     Gauss -> SetInputData(Image);
@@ -1646,17 +1668,13 @@ void GetHessianEigenvaluesDiscrete(double sigma, vtkSmartPointer<vtkImageData> I
 }
 
 void GetHessianEigenvaluesDiscreteZDependentThreshold(double sigma, vtkSmartPointer<vtkImageData> Image, vtkSmartPointer<vtkDoubleArray> L1, vtkSmartPointer<vtkDoubleArray> L2, vtkSmartPointer<vtkDoubleArray> L3, _mitoObject *mitoObject) {
-    #ifdef DEBUG
-        printf("Calculating Hessian Eigeinvalues (Discrete)...\n");
-    #endif
+    // Debug output removed
 
     int *Dim = Image -> GetDimensions();
     vtkIdType id, N = Image -> GetNumberOfPoints();
     double H[3][3], Eva[3], Eve[3][3], dxx, dyy, dzz, dxy, dxz, dyz, l1, l2, l3, frobnorm;
 
-    #ifdef DEBUG
-        printf("Calculating Gaussian Convolution...\n");
-    #endif
+    // Debug output removed
 
     vtkSmartPointer<vtkImageGaussianSmooth> Gauss = vtkSmartPointer<vtkImageGaussianSmooth>::New();
     Gauss -> SetInputData(Image);
@@ -1776,9 +1794,7 @@ void GetHessianEigenvaluesDiscreteZDependentThreshold(double sigma, vtkSmartPoin
 
 void GetVesselness(double sigma, vtkSmartPointer<vtkImageData> Image, vtkSmartPointer<vtkDoubleArray> L1, vtkSmartPointer<vtkDoubleArray> L2, vtkSmartPointer<vtkDoubleArray> L3, _mitoObject *mitoObject) {
 
-    #ifdef DEBUG
-        printf("Calculating Vesselness...\n");
-    #endif
+    // Debug output removed
 
     double c = 500.0;
     double beta = 0.5;
@@ -2554,7 +2570,7 @@ int main(int argc, char *argv[]) {
     mitoObject._sigmaf = 1.50;
     mitoObject._nsigma = 6;
     mitoObject._z_adaptive = false;
-    mitoObject._z_block_size = 3;
+    mitoObject._z_block_size = 8; // Improved default for better statistics
 
     // Collecting input parameters
     for (i = 0; i < argc; i++) {
@@ -2590,6 +2606,11 @@ int main(int argc, char *argv[]) {
         }
         if (!strcmp(argv[i],"-z-block-size")) {
             mitoObject._z_block_size = atoi(argv[i+1]);
+            // Basic validation - just ensure it's positive
+            if (mitoObject._z_block_size < 1) {
+                printf("Warning: z_block_size too small (%d), setting to minimum of 1\n", mitoObject._z_block_size);
+                mitoObject._z_block_size = 1;
+            }
         }
         if (!strcmp(argv[i],"-threshold")) {
             _div_threshold = (double)atof(argv[i+1]);
@@ -2647,8 +2668,7 @@ int main(int argc, char *argv[]) {
 
     mitoObject._dsigma = (mitoObject._nsigma>1) ? (mitoObject._sigmaf-mitoObject._sigmai) / (mitoObject._nsigma-1) : mitoObject._sigmaf;
 
-    printf("[Starting MitoGraph %s]\n",MITOGRAPH_VERSION.c_str());
-    printf("%d files found. MitoGraph is running...\n",(int)Files.size());
+    // Debug output removed
 
     for (int i = 0; i < Files.size(); i++) {
 
@@ -2673,7 +2693,7 @@ int main(int argc, char *argv[]) {
 
     }
 
-    printf("Process complete. Exiting MitoGraph...\n");
+    // Debug output removed
 
     return 0;
 }

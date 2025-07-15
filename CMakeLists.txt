@@ -40,7 +40,7 @@ ENDIF()
 INCLUDE_DIRECTORIES(${VTK_INCLUDE_DIRS})
 
 # Add executable
-ADD_EXECUTABLE(MitoGraph MitoGraph MitoThinning ssThinning)
+ADD_EXECUTABLE(MitoGraph MitoGraph.cxx MitoThinning.cxx ssThinning.cxx)
 
 # Link libraries
 IF(VTK_VERSION VERSION_GREATER_EQUAL "8.90.0")
