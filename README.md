@@ -8,13 +8,6 @@ This is an enhanced version of MitoGraph with significant improvements to z-adap
 
 ## 🎯 Core Problem Addressed
 
-### **Original Z-Adaptive Limitations**
-The original MitoGraph z-adaptive implementation had several critical issues:
-- **Poor Dark Region Sensitivity**: Dark or low-intensity mitochondrial structures were often missed or under-segmented
-- **Inconsistent Threshold Behavior**: User threshold parameters had unpredictable effects on segmentation results
-- **Automatic XY-Adaptive Coupling**: Z-adaptive mode automatically enabled XY-adaptive, limiting user control
-- **Fragmented Results**: Over-sensitive segmentation led to highly fragmented skeleton structures
-
 ### **The Dark Region Problem**
 In many fluorescence microscopy images of mitochondria, particularly in live-cell imaging:
 - **Intensity Variations**: Mitochondria can appear significantly darker in certain cellular regions
