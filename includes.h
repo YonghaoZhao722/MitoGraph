@@ -81,6 +81,9 @@
     	int _nblks;
 		bool _z_adaptive;
 		int _z_block_size;
+		bool _enhance_connectivity;
+		bool _smart_component_filtering;
+		int _min_component_size;
 
 	    std::vector<attribute> attributes;
 	};

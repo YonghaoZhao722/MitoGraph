@@ -579,6 +579,13 @@ void ExportConfigFile(const _mitoObject mitoObject) {
         fprintf(f,"Z-Adaptive Processing: %s\n",_t);
         fprintf(f,"Z-Block Size: %d\n",mitoObject._z_block_size);
     }
+    fprintf(f,"Enhance Connectivity: %s\n",mitoObject._enhance_connectivity?_t:_f);
+    if (mitoObject._smart_component_filtering) {
+        fprintf(f,"Smart Component Filtering: %s\n",_t);
+        fprintf(f,"Min Component Size: %d\n",mitoObject._min_component_size);
+    } else {
+        fprintf(f,"Smart Component Filtering: %s\n",_f);
+    }
     fprintf(f,"Pixel size: -xy %1.4fum, -z %1.4fum\n",_dxy,_dz);
     fprintf(f,"Average tubule radius: -r %1.4fum\n",_rad);
     fprintf(f,"Scales: -scales %1.2f",mitoObject._sigmai);
@@ -849,54 +856,66 @@ vtkSmartPointer<vtkImageData> Convert16To8bitZAdaptiveGentle(vtkSmartPointer<vtk
             ScalarsChar -> SetTuple1(id, (unsigned char)normalized);
         }
         
-        // Then apply local contrast enhancement per z-plane
-        for (int z = 0; z < Dim[2]; z++) {
+        // Then apply local contrast enhancement per z-block (using block_size)
+        for (int z_start = 0; z_start < Dim[2]; z_start += block_size) {
             
-            // Calculate statistics for this z-plane
-            double z_sum = 0.0, z_mean = 0.0;
-            double z_min = 255.0, z_max = 0.0;
-            int z_pixels = Dim[0] * Dim[1];
+            int z_end = (z_start + block_size < Dim[2]) ? z_start + block_size : Dim[2];
             
-            for (int x = 0; x < Dim[0]; x++) {
-                for (int y = 0; y < Dim[1]; y++) {
-                    double point[3] = {(double)x, (double)y, (double)z};
-                    vtkIdType id = Image -> FindPoint(point);
-                    double val = ScalarsChar -> GetTuple1(id);
-                    z_sum += val;
-                    if (val < z_min) z_min = val;
-                    if (val > z_max) z_max = val;
-                }
-            }
-            z_mean = z_sum / z_pixels;
+            // Calculate statistics for this z-block
+            double block_sum = 0.0, block_mean = 0.0;
+            double block_min = 255.0, block_max = 0.0;
+            int block_pixels = Dim[0] * Dim[1] * (z_end - z_start);
             
-            // Apply gentle contrast enhancement for dimmer z-planes
-            double z_range = z_max - z_min;
-            if (z_range > 0 && z_mean < 100) { // Only enhance dimmer planes
-                
-                // More aggressive enhancement for very dark planes
-                double enhancement_factor;
-                if (z_mean < 20) {
-                    enhancement_factor = 3.0; // Very aggressive for extremely dark planes
-                } else if (z_mean < 50) {
-                    enhancement_factor = 2.5; // More aggressive for very dark planes
-                } else {
-                    enhancement_factor = 1.5; // Gentle enhancement for moderately dark planes
-                }
-                
+            // First pass: calculate statistics for the entire z-block
+            for (int z = z_start; z < z_end; z++) {
                 for (int x = 0; x < Dim[0]; x++) {
                     for (int y = 0; y < Dim[1]; y++) {
                         double point[3] = {(double)x, (double)y, (double)z};
                         vtkIdType id = Image -> FindPoint(point);
                         double val = ScalarsChar -> GetTuple1(id);
-                        
-                        // Apply contrast enhancement around mean
-                        double enhanced = z_mean + enhancement_factor * (val - z_mean);
-                        
-                        // Clamp to valid range
-                        if (enhanced < 0) enhanced = 0;
-                        if (enhanced > 255) enhanced = 255;
-                        
-                        ScalarsChar -> SetTuple1(id, (unsigned char)enhanced);
+                        block_sum += val;
+                        if (val < block_min) block_min = val;
+                        if (val > block_max) block_max = val;
+                    }
+                }
+            }
+            block_mean = block_sum / block_pixels;
+            
+            // Apply adaptive contrast enhancement for all z-blocks
+            double block_range = block_max - block_min;
+            if (block_range > 0) { // Process all blocks, not just dimmer ones
+                
+                // Adaptive enhancement based on block brightness
+                double enhancement_factor;
+                if (block_mean < 20) {
+                    enhancement_factor = 3.0; // Very aggressive for extremely dark blocks
+                } else if (block_mean < 50) {
+                    enhancement_factor = 2.5; // More aggressive for very dark blocks
+                } else if (block_mean < 100) {
+                    enhancement_factor = 1.5; // Gentle enhancement for moderately dark blocks
+                } else if (block_mean < 150) {
+                    enhancement_factor = 1.2; // Light enhancement for medium brightness blocks
+                } else {
+                    enhancement_factor = 1.1; // Minimal enhancement for bright blocks
+                }
+                
+                // Apply enhancement to all pixels in this z-block
+                for (int z = z_start; z < z_end; z++) {
+                    for (int x = 0; x < Dim[0]; x++) {
+                        for (int y = 0; y < Dim[1]; y++) {
+                            double point[3] = {(double)x, (double)y, (double)z};
+                            vtkIdType id = Image -> FindPoint(point);
+                            double val = ScalarsChar -> GetTuple1(id);
+                            
+                            // Apply contrast enhancement around block mean
+                            double enhanced = block_mean + enhancement_factor * (val - block_mean);
+                            
+                            // Clamp to valid range
+                            if (enhanced < 0) enhanced = 0;
+                            if (enhanced > 255) enhanced = 255;
+                            
+                            ScalarsChar -> SetTuple1(id, (unsigned char)enhanced);
+                        }
                     }
                 }
                 
@@ -2192,12 +2211,12 @@ int MultiscaleVesselness(_mitoObject *mitoObject) {
     mitoObject->Ox = Origin[0];
     mitoObject->Oy = Origin[1];
     mitoObject->Oz = Origin[2];
-    Image -> SetOrigin(0,0,0);
+    Image -> SetOrigin(0,0,0);  
 
     // Conversion 16-bit to 8-bit
     // Z-adaptive and XY-adaptive are now independent options
     if (mitoObject->_z_adaptive) {
-        // Apply gentle z-adaptive normalization that preserves some 3D continuity
+                // Apply gentle z-adaptive normalization that preserves some 3D continuity
         // Note: xy adaptive (mitoObject->_adaptive_threshold) remains independent
         Image = Convert16To8bitZAdaptiveGentle(Image, mitoObject->_z_block_size);
     } else {
@@ -2297,14 +2316,9 @@ int MultiscaleVesselness(_mitoObject *mitoObject) {
         Volume -> FillComponent(0,0);
         long int ncc = LabelConnectedComponents(ImageEnhanced,Volume,CSz,6,_div_threshold); // can use _mitoObj here
 
-        if (ncc > 1) {
-            // Adjust small component removal threshold based on threshold sensitivity
-            int min_component_size = 5;
-            if (_div_threshold < 0.1) {
-                min_component_size = 3; // For sensitive threshold, preserve more small structures
-            } else if (_div_threshold > 0.2) {
-                min_component_size = 8; // For insensitive threshold, remove more noise
-            }
+        if (ncc > 1 && mitoObject->_smart_component_filtering) {
+            // Use user-specified component size, or automatic based on threshold sensitivity
+            int min_component_size = mitoObject->_min_component_size;
             
             #ifdef DEBUG
                 printf("\tRemoving components smaller than %d voxels...\n", min_component_size);
@@ -2322,13 +2336,12 @@ int MultiscaleVesselness(_mitoObject *mitoObject) {
 
         //STRUCTURAL CONNECTIVITY ENHANCEMENT
         //-----------------------------------
-        #ifdef DEBUG
-            printf("Enhancing structural connectivity before binarization...\n");
-        #endif
-        
-        // Enhance structural connectivity, especially for sensitive threshold settings
-        if (mitoObject->_z_adaptive || _div_threshold < 0.2) {
-            // Use stronger connectivity enhancement for sensitive settings
+        if (mitoObject->_enhance_connectivity) {
+            #ifdef DEBUG
+                printf("Enhancing structural connectivity before binarization...\n");
+            #endif
+            
+            // Use stronger connectivity enhancement for sensitive threshold settings
             double enhancement_strength = (_div_threshold < 0.1) ? 2.0 : 1.5;
             ImageEnhanced = EnhanceStructuralConnectivity(ImageEnhanced, enhancement_strength);
         }
@@ -2416,7 +2429,7 @@ int MultiscaleVesselness(_mitoObject *mitoObject) {
 
     //FRAGMENT CONNECTION
     //-------------------
-    if (mitoObject->_z_adaptive || _div_threshold < 0.2) {
+    if (mitoObject->_enhance_connectivity) {
         #ifdef DEBUG
             printf("Applying skeleton fragment connection...\n");
         #endif
@@ -2571,6 +2584,9 @@ int main(int argc, char *argv[]) {
     mitoObject._nsigma = 6;
     mitoObject._z_adaptive = false;
     mitoObject._z_block_size = 8; // Improved default for better statistics
+    mitoObject._enhance_connectivity = false; // Default off - user controlled
+    mitoObject._smart_component_filtering = false; // Default off - user controlled  
+    mitoObject._min_component_size = 5; // Default component size
 
     // Collecting input parameters
     for (i = 0; i < argc; i++) {
@@ -2610,6 +2626,19 @@ int main(int argc, char *argv[]) {
             if (mitoObject._z_block_size < 1) {
                 printf("Warning: z_block_size too small (%d), setting to minimum of 1\n", mitoObject._z_block_size);
                 mitoObject._z_block_size = 1;
+            }
+        }
+        if (!strcmp(argv[i],"-enhance-connectivity")) {
+            mitoObject._enhance_connectivity = true;
+        }
+        if (!strcmp(argv[i],"-smart-component-filtering")) {
+            mitoObject._smart_component_filtering = true;
+            if (i+1 < argc && argv[i+1][0] != '-') {
+                mitoObject._min_component_size = atoi(argv[i+1]);
+                if (mitoObject._min_component_size < 1) {
+                    printf("Warning: min_component_size too small (%d), setting to minimum of 1\n", mitoObject._min_component_size);
+                    mitoObject._min_component_size = 1;
+                }
             }
         }
         if (!strcmp(argv[i],"-threshold")) {
