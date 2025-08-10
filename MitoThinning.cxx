@@ -102,11 +102,12 @@ void SaveImageData(vtkSmartPointer<vtkImageData> Image, const char FileName[], b
         printf("Saving ImageData File...\n");
     #endif
 
-    vtkSmartPointer<vtkImageFlip> Flip = vtkSmartPointer<vtkImageFlip>::New();
-    Flip -> SetInputData(Image);
-    Flip -> SetFilteredAxis(1);
-    Flip -> PreserveImageExtentOn();
-    Flip -> Update();
+    // Removed automatic vertical flip to preserve original image orientation
+    // vtkSmartPointer<vtkImageFlip> Flip = vtkSmartPointer<vtkImageFlip>::New();
+    // Flip -> SetInputData(Image);
+    // Flip -> SetFilteredAxis(1);
+    // Flip -> PreserveImageExtentOn();
+    // Flip -> Update();
 
     vtkSmartPointer<vtkTIFFWriter> writer = vtkSmartPointer<vtkTIFFWriter>::New();
     writer -> SetFileName(FileName);
@@ -117,7 +118,7 @@ void SaveImageData(vtkSmartPointer<vtkImageData> Image, const char FileName[], b
         double range[2];
         Image -> GetScalarRange( range );
         vtkSmartPointer<vtkImageShiftScale> ShiftFilter = vtkSmartPointer<vtkImageShiftScale>::New();
-        ShiftFilter -> SetInputData(Flip->GetOutput());
+        ShiftFilter -> SetInputData(Image);  // Use original Image instead of Flip->GetOutput()
         ShiftFilter -> SetScale( 65535./(range[1]-range[0]));
         ShiftFilter -> SetShift( -range[0] );
         ShiftFilter -> SetOutputScalarTypeToUnsignedShort();
@@ -134,7 +135,7 @@ void SaveImageData(vtkSmartPointer<vtkImageData> Image, const char FileName[], b
             vtkSmartPointer<vtkImageResample> Resample = vtkSmartPointer<vtkImageResample>::New();
             Resample -> SetInterpolationModeToLinear();
             Resample -> SetDimensionality(3);
-            Resample -> SetInputData(Flip->GetOutput());
+            Resample -> SetInputData(Image);  // Use original Image instead of Flip->GetOutput()
             Resample -> SetAxisMagnificationFactor(0,1.0);
             Resample -> SetAxisMagnificationFactor(1,1.0);
             Resample -> SetAxisMagnificationFactor(2,_dz/_dxy);
@@ -146,7 +147,7 @@ void SaveImageData(vtkSmartPointer<vtkImageData> Image, const char FileName[], b
             writer -> SetInputData(ImageResampled);
         } else {
 
-            writer -> SetInputData(Flip->GetOutput());
+            writer -> SetInputData(Image);  // Use original Image instead of Flip->GetOutput()
 
         }
         

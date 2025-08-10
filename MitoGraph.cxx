@@ -325,11 +325,18 @@ void ExportMaxProjection(vtkSmartPointer<vtkImageData> Image, const char FileNam
 
     MaxP -> GetPointData() -> SetScalars(MaxPArray);
 
+    // Apply vertical flip specifically for PNG output
+    vtkSmartPointer<vtkImageFlip> Flip = vtkSmartPointer<vtkImageFlip>::New();
+    Flip -> SetInputData(MaxP);
+    Flip -> SetFilteredAxis(1);
+    Flip -> PreserveImageExtentOn();
+    Flip -> Update();
+
     vtkSmartPointer<vtkPNGWriter> PNGWriter = vtkSmartPointer<vtkPNGWriter>::New();
     PNGWriter -> SetFileName(FileName);
     PNGWriter -> SetFileDimensionality(2);
     PNGWriter -> SetCompressionLevel(0);
-    PNGWriter -> SetInputData(MaxP);
+    PNGWriter -> SetInputData(Flip->GetOutput());
     PNGWriter -> Write();
 
     #ifdef DEBUG
@@ -523,12 +530,19 @@ void ExportDetailedMaxProjection(_mitoObject *mitoObject) {
 
         Plane -> GetPointData() -> SetScalars(MaxPArray);
 
+        // Apply vertical flip specifically for PNG output
+        vtkSmartPointer<vtkImageFlip> FlipDetailed = vtkSmartPointer<vtkImageFlip>::New();
+        FlipDetailed -> SetInputData(Plane);
+        FlipDetailed -> SetFilteredAxis(1);
+        FlipDetailed -> PreserveImageExtentOn();
+        FlipDetailed -> Update();
+
         // Saving PNG File
         vtkSmartPointer<vtkPNGWriter> PNGWriter = vtkSmartPointer<vtkPNGWriter>::New();
         PNGWriter -> SetFileName((mitoObject->FileName+"_detailed.png").c_str());
         PNGWriter -> SetFileDimensionality(2);
         PNGWriter -> SetCompressionLevel(0);
-        PNGWriter -> SetInputData(Plane);
+        PNGWriter -> SetInputData(FlipDetailed->GetOutput());
         PNGWriter -> Write();
 
         // Debug output removed
