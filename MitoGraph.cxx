@@ -109,6 +109,12 @@ vtkSmartPointer<vtkImageData> BinarizeAndConvertDoubleToCharZAdaptive(vtkSmartPo
 // Conservative z-adaptive version that uses blocks to reduce noise
 vtkSmartPointer<vtkImageData> BinarizeAndConvertDoubleToCharZAdaptiveConservative(vtkSmartPointer<vtkImageData> Image, double base_threshold, int z_block_size);
 
+// Simple z-block version that applies the same simple threshold per z-block (like segmented non z-adaptive)
+vtkSmartPointer<vtkImageData> BinarizeAndConvertDoubleToCharZBlockSimple(vtkSmartPointer<vtkImageData> Image, double threshold, int z_block_size);
+
+// Enhanced z-block version with overlapping blocks and foreground detection
+vtkSmartPointer<vtkImageData> BinarizeAndConvertDoubleToCharZBlockEnhanced(vtkSmartPointer<vtkImageData> Image, double threshold, int z_block_size);
+
 // Enhance structural connectivity before binarization
 vtkSmartPointer<vtkImageData> EnhanceStructuralConnectivity(vtkSmartPointer<vtkImageData> Image, double sigma);
 
@@ -592,6 +598,9 @@ void ExportConfigFile(const _mitoObject mitoObject) {
     if (mitoObject._z_adaptive) {
         fprintf(f,"Z-Adaptive Processing: %s\n",_t);
         fprintf(f,"Z-Block Size: %d\n",mitoObject._z_block_size);
+        if (mitoObject._z_enhanced) {
+            fprintf(f,"Z-Enhanced Mode: %s (with overlapping blocks and foreground detection)\n",_t);
+        }
     }
     fprintf(f,"Enhance Connectivity: %s\n",mitoObject._enhance_connectivity?_t:_f);
     if (mitoObject._smart_component_filtering) {
@@ -983,6 +992,328 @@ vtkSmartPointer<vtkImageData> BinarizeAndConvertDoubleToChar(vtkSmartPointer<vtk
     Image8 -> GetPointData() -> SetScalars(ScalarsChar);
     return Image8;
 
+}
+
+vtkSmartPointer<vtkImageData> BinarizeAndConvertDoubleToCharZBlockSimple(vtkSmartPointer<vtkImageData> Image, double threshold, int z_block_size) {
+
+    vtkSmartPointer<vtkImageData> Image8 = vtkImageData::New();
+    Image8 -> ShallowCopy(Image);
+
+    vtkDataArray *ScalarsDouble = Image -> GetPointData() -> GetScalars();
+    unsigned long int N = ScalarsDouble -> GetNumberOfTuples();
+    int *Dim = Image -> GetDimensions();
+
+    vtkSmartPointer<vtkUnsignedCharArray> ScalarsChar = vtkSmartPointer<vtkUnsignedCharArray>::New();
+    ScalarsChar -> SetNumberOfComponents(1);
+    ScalarsChar -> SetNumberOfTuples(N);
+    
+    #ifdef DEBUG
+        printf("Simple Z-block binarization: threshold=%.3f, z_block_size=%d, z_dim=%d\n", 
+               threshold, z_block_size, Dim[2]);
+    #endif
+    
+    // Process z-planes in blocks, calculating local threshold for each block
+    // Each z-block acts like its own independent segmentation
+    for (int z_start = 0; z_start < Dim[2]; z_start += z_block_size) {
+        
+        int z_end = (z_start + z_block_size < Dim[2]) ? z_start + z_block_size : Dim[2];
+        
+        #ifdef DEBUG
+            printf("\tProcessing z-block [%d-%d)\n", z_start, z_end);
+        #endif
+        
+        // Calculate the range for this z-block (after preprocessing)
+        double block_min = DBL_MAX, block_max = DBL_MIN;
+        for (int z = z_start; z < z_end; z++) {
+            for (int x = 0; x < Dim[0]; x++) {
+                for (int y = 0; y < Dim[1]; y++) {
+                    double point[3] = {(double)x, (double)y, (double)z};
+                    vtkIdType id = Image -> FindPoint(point);
+                    double val = ScalarsDouble -> GetTuple1(id);
+                    if (val < block_min) block_min = val;
+                    if (val > block_max) block_max = val;
+                }
+            }
+        }
+        
+        // Calculate local threshold for this z-block
+        // Map the user's threshold to the local intensity range of this block
+        double block_range = block_max - block_min;
+        double local_threshold;
+        
+        if (block_range > 1e-6) {
+            // Map user threshold (like 0.2) to the local range after preprocessing
+            // Since preprocessing normalized to 0-255, we map user threshold proportionally
+            local_threshold = block_min + (block_range * threshold);
+        } else {
+            // If block has uniform intensity, use a conservative threshold
+            local_threshold = block_min + 1.0;
+        }
+        
+        #ifdef DEBUG
+            printf("\t\tBlock range: [%.3f-%.3f], user threshold: %.3f, local threshold: %.3f\n", 
+                   block_min, block_max, threshold, local_threshold);
+        #endif
+        
+        // Apply the local threshold to this z-block
+        for (int z = z_start; z < z_end; z++) {
+            for (int x = 0; x < Dim[0]; x++) {
+                for (int y = 0; y < Dim[1]; y++) {
+                    double point[3] = {(double)x, (double)y, (double)z};
+                    vtkIdType id = Image -> FindPoint(point);
+                    double val = ScalarsDouble -> GetTuple1(id);
+                    
+                    // Use the locally adapted threshold for this z-block
+                    if (val <= local_threshold) {
+                        ScalarsChar -> SetTuple1(id, 0);
+                    } else {
+                        ScalarsChar -> SetTuple1(id, 255);
+                    }
+                }
+            }
+        }
+    }
+    
+    ScalarsChar -> Modified();
+    Image8 -> GetPointData() -> SetScalars(ScalarsChar);
+    return Image8;
+}
+
+vtkSmartPointer<vtkImageData> BinarizeAndConvertDoubleToCharZBlockEnhanced(vtkSmartPointer<vtkImageData> Image, double threshold, int z_block_size) {
+
+    vtkSmartPointer<vtkImageData> Image8 = vtkImageData::New();
+    Image8 -> ShallowCopy(Image);
+
+    vtkDataArray *ScalarsDouble = Image -> GetPointData() -> GetScalars();
+    unsigned long int N = ScalarsDouble -> GetNumberOfTuples();
+    int *Dim = Image -> GetDimensions();
+
+    vtkSmartPointer<vtkUnsignedCharArray> ScalarsChar = vtkSmartPointer<vtkUnsignedCharArray>::New();
+    ScalarsChar -> SetNumberOfComponents(1);
+    ScalarsChar -> SetNumberOfTuples(N);
+    
+    #ifdef DEBUG
+        printf("Enhanced Z-block binarization: threshold=%.3f, z_block_size=%d, z_dim=%d\n", 
+               threshold, z_block_size, Dim[2]);
+    #endif
+    
+    // First pass: Calculate global statistics for reference
+    double global_min = DBL_MAX, global_max = DBL_MIN;
+    double global_sum = 0.0;
+    int global_count = 0;
+    
+    for (int x = 0; x < Dim[0]; x++) {
+        for (int y = 0; y < Dim[1]; y++) {
+            for (int z = 0; z < Dim[2]; z++) {
+                double point[3] = {(double)x, (double)y, (double)z};
+                vtkIdType id = Image -> FindPoint(point);
+                double val = ScalarsDouble -> GetTuple1(id);
+                if (val < global_min) global_min = val;
+                if (val > global_max) global_max = val;
+                global_sum += val;
+                global_count++;
+            }
+        }
+    }
+    
+    double global_mean = global_sum / global_count;
+    double global_range = global_max - global_min;
+    double global_threshold = global_min + (global_range * threshold);
+    
+    #ifdef DEBUG
+        printf("\tGlobal stats: range=[%.3f-%.3f], mean=%.3f, global_threshold=%.3f\n", 
+               global_min, global_max, global_mean, global_threshold);
+    #endif
+    
+    // Initialize result array with zeros and create a vote count array
+    vtkSmartPointer<vtkUnsignedCharArray> VoteCount = vtkSmartPointer<vtkUnsignedCharArray>::New();
+    VoteCount -> SetNumberOfComponents(1);
+    VoteCount -> SetNumberOfTuples(N);
+    
+    for (vtkIdType id = 0; id < N; id++) {
+        ScalarsChar -> SetTuple1(id, 0);
+        VoteCount -> SetTuple1(id, 0);
+    }
+    
+    // Process z-planes with overlapping blocks
+    // Use smaller overlap to reduce computational load and improve consistency
+    int overlap_size = fmax(1, z_block_size / 3); // 33% overlap, more consistent
+    
+    int processed_blocks = 0;  // Track how many blocks we actually process
+    
+    for (int z_start = 0; z_start < Dim[2]; z_start += overlap_size) {
+        
+        int z_end = (z_start + z_block_size < Dim[2]) ? z_start + z_block_size : Dim[2];
+        
+        #ifdef DEBUG
+            printf("\tProcessing overlapping z-block [%d-%d)\n", z_start, z_end);
+        #endif
+        
+        // Calculate block statistics
+        double block_min = DBL_MAX, block_max = DBL_MIN;
+        double block_sum = 0.0, block_sum_sq = 0.0;
+        int block_count = 0;
+        
+        for (int z = z_start; z < z_end; z++) {
+            for (int x = 0; x < Dim[0]; x++) {
+                for (int y = 0; y < Dim[1]; y++) {
+                    double point[3] = {(double)x, (double)y, (double)z};
+                    vtkIdType id = Image -> FindPoint(point);
+                    double val = ScalarsDouble -> GetTuple1(id);
+                    
+                    if (val < block_min) block_min = val;
+                    if (val > block_max) block_max = val;
+                    block_sum += val;
+                    block_sum_sq += val * val;
+                    block_count++;
+                }
+            }
+        }
+        
+        double block_mean = block_sum / block_count;
+        double block_variance = (block_sum_sq / block_count) - (block_mean * block_mean);
+        double block_std = sqrt(block_variance);
+        double block_range = block_max - block_min;
+        
+        // Foreground detection: Check if this block contains meaningful structure
+        bool is_foreground_block = true;
+        
+        // More permissive foreground detection to avoid filtering everything out
+        
+        // Test 1: Only reject blocks with extremely low variance (truly uniform)
+        double variance_threshold = (global_range * global_range) * 0.00001; // Very permissive: 0.001% of global variance
+        if (block_variance < variance_threshold) {
+            is_foreground_block = false;
+            #ifdef DEBUG
+                printf("\t\tBlock [%d-%d) rejected: extremely low variance (%.6f < %.6f)\n", 
+                       z_start, z_end, block_variance, variance_threshold);
+            #endif
+        }
+        
+        // Test 2: Only reject blocks with truly negligible range
+        double range_threshold = global_range * 0.005; // Very permissive: 0.5% of global range
+        if (block_range < range_threshold) {
+            is_foreground_block = false;
+            #ifdef DEBUG
+                printf("\t\tBlock [%d-%d) rejected: negligible range (%.3f < %.3f)\n", 
+                       z_start, z_end, block_range, range_threshold);
+            #endif
+        }
+        
+        // Test 3: Only reject blocks that are clearly pure background (very close to minimum)
+        if (block_mean < global_min + (global_range * 0.02)) { // Only bottom 2% of intensity range
+            is_foreground_block = false;
+            #ifdef DEBUG
+                printf("\t\tBlock [%d-%d) rejected: pure background (%.3f < %.3f)\n", 
+                       z_start, z_end, block_mean, global_min + (global_range * 0.02));
+            #endif
+        }
+        
+        if (!is_foreground_block) {
+            #ifdef DEBUG
+                printf("\t\tSkipping background block [%d-%d)\n", z_start, z_end);
+            #endif
+            continue; // Skip processing this block
+        }
+        
+        processed_blocks++;  // Count this as a processed block
+        
+        // Calculate hybrid threshold for this block
+        double local_threshold;
+        
+        // Hybrid approach: combine global and local information
+        double local_base_threshold = block_min + (block_range * threshold);
+        
+        // Weight between global and local threshold based on block reliability
+        double reliability_factor = fmin(1.0, block_std / (global_range * 0.1));
+        double alpha = 0.3 + (0.5 * reliability_factor); // 0.3 to 0.8 weighting for local threshold
+        
+        local_threshold = alpha * local_base_threshold + (1.0 - alpha) * global_threshold;
+        
+        // Statistical approach for high-contrast blocks
+        if (block_std > global_range * 0.1) {
+            double stat_threshold = block_mean + (block_std * threshold * 2.0);
+            local_threshold = fmax(local_threshold, stat_threshold);
+        }
+        
+        // Ensure threshold is reasonable
+        if (local_threshold > block_max * 0.95) {
+            local_threshold = block_max * 0.8;
+        }
+        if (local_threshold < block_min + block_range * 0.05) {
+            local_threshold = block_min + block_range * 0.1;
+        }
+        
+        #ifdef DEBUG
+            printf("\t\tBlock [%d-%d): mean=%.3f, std=%.3f, range=[%.3f-%.3f]\n", 
+                   z_start, z_end, block_mean, block_std, block_min, block_max);
+            printf("\t\tThresholds: local_base=%.3f, global=%.3f, alpha=%.3f, final=%.3f\n",
+                   local_base_threshold, global_threshold, alpha, local_threshold);
+        #endif
+        
+        // Apply threshold with proper overlap voting
+        for (int z = z_start; z < z_end; z++) {
+            for (int x = 0; x < Dim[0]; x++) {
+                for (int y = 0; y < Dim[1]; y++) {
+                    double point[3] = {(double)x, (double)y, (double)z};
+                    vtkIdType id = Image -> FindPoint(point);
+                    double val = ScalarsDouble -> GetTuple1(id);
+                    
+                    // Increment vote count for this pixel (regardless of threshold result)
+                    unsigned char current_votes = VoteCount -> GetTuple1(id);
+                    VoteCount -> SetTuple1(id, current_votes + 1);
+                    
+                    if (val > local_threshold) {
+                        // Vote for foreground - increment positive votes
+                        unsigned char current_positive = ScalarsChar -> GetTuple1(id);
+                        ScalarsChar -> SetTuple1(id, current_positive + 1);
+                    }
+                }
+            }
+        }
+    }
+    
+    #ifdef DEBUG
+        printf("\tProcessed %d blocks out of %d total possible blocks\n", processed_blocks, 
+               (Dim[2] + overlap_size - 1) / overlap_size);
+    #endif
+    
+    // If no blocks were processed (too strict filtering), fall back to simple global thresholding
+    if (processed_blocks == 0) {
+        #ifdef DEBUG
+            printf("\tNo blocks passed foreground detection - falling back to global thresholding\n");
+        #endif
+        
+        for (vtkIdType id = 0; id < N; id++) {
+            double val = ScalarsDouble -> GetTuple1(id);
+            if (val > global_threshold) {
+                ScalarsChar -> SetTuple1(id, 255);
+            } else {
+                ScalarsChar -> SetTuple1(id, 0);
+            }
+        }
+        
+        ScalarsChar -> Modified();
+        Image8 -> GetPointData() -> SetScalars(ScalarsChar);
+        return Image8;
+    }
+    
+    // Final pass: Convert vote counts to binary using majority voting
+    for (vtkIdType id = 0; id < N; id++) {
+        unsigned char positive_votes = ScalarsChar -> GetTuple1(id);
+        unsigned char total_votes = VoteCount -> GetTuple1(id);
+        
+        // Require at least 50% of votes to be positive for foreground classification
+        if (total_votes > 0 && positive_votes * 2 >= total_votes) {
+            ScalarsChar -> SetTuple1(id, 255);
+        } else {
+            ScalarsChar -> SetTuple1(id, 0);
+        }
+    }
+    
+    ScalarsChar -> Modified();
+    Image8 -> GetPointData() -> SetScalars(ScalarsChar);
+    return Image8;
 }
 
 vtkSmartPointer<vtkImageData> BinarizeAndConvertDoubleToCharZAdaptive(vtkSmartPointer<vtkImageData> Image, double base_threshold) {
@@ -2228,12 +2559,11 @@ int MultiscaleVesselness(_mitoObject *mitoObject) {
     Image -> SetOrigin(0,0,0);  
 
     // Conversion 16-bit to 8-bit
-    // Z-adaptive and XY-adaptive are now independent options
     if (mitoObject->_z_adaptive) {
-                // Apply gentle z-adaptive normalization that preserves some 3D continuity
-        // Note: xy adaptive (mitoObject->_adaptive_threshold) remains independent
-        Image = Convert16To8bitZAdaptiveGentle(Image, mitoObject->_z_block_size);
+        // Apply z-block normalization in preprocessing - each z-block normalized independently
+        Image = Convert16To8bitZAdaptiveBlocks(Image, mitoObject->_z_block_size);
     } else {
+        // Use global normalization for non z-adaptive
         Image = Convert16To8bit(Image);
     }
 
@@ -2363,7 +2693,13 @@ int MultiscaleVesselness(_mitoObject *mitoObject) {
         //BINARIZATION
         //------------
         if (mitoObject->_z_adaptive) {
-            Binary = BinarizeAndConvertDoubleToCharZAdaptiveConservative(ImageEnhanced, _div_threshold, mitoObject->_z_block_size);
+            if (mitoObject->_z_enhanced) {
+                // Use enhanced z-block segmentation with overlapping blocks and foreground detection
+                Binary = BinarizeAndConvertDoubleToCharZBlockEnhanced(ImageEnhanced, _div_threshold, mitoObject->_z_block_size);
+            } else {
+                // Use simple z-block segmentation - just like running multiple non z-adaptive segmentations
+                Binary = BinarizeAndConvertDoubleToCharZBlockSimple(ImageEnhanced, _div_threshold, mitoObject->_z_block_size);
+            }
         } else {
             Binary = BinarizeAndConvertDoubleToChar(ImageEnhanced,_div_threshold); // can use _mitoObj here
         }
@@ -2598,6 +2934,7 @@ int main(int argc, char *argv[]) {
     mitoObject._nsigma = 6;
     mitoObject._z_adaptive = false;
     mitoObject._z_block_size = 8; // Improved default for better statistics
+    mitoObject._z_enhanced = false; // Enhanced z-adaptive disabled by default
     mitoObject._enhance_connectivity = false; // Default off - user controlled
     mitoObject._smart_component_filtering = false; // Default off - user controlled  
     mitoObject._min_component_size = 5; // Default component size
@@ -2633,6 +2970,10 @@ int main(int argc, char *argv[]) {
         }
         if (!strcmp(argv[i],"-z-adaptive")) {
             mitoObject._z_adaptive = true;
+        }
+        if (!strcmp(argv[i],"-z-enhanced")) {
+            mitoObject._z_adaptive = true;  // Enhanced mode also enables z-adaptive
+            mitoObject._z_enhanced = true;
         }
         if (!strcmp(argv[i],"-z-block-size")) {
             mitoObject._z_block_size = atoi(argv[i+1]);

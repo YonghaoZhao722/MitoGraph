@@ -81,6 +81,7 @@
     	int _nblks;
 		bool _z_adaptive;
 		int _z_block_size;
+		bool _z_enhanced;        // Enhanced z-adaptive with overlapping blocks and foreground detection
 		bool _enhance_connectivity;
 		bool _smart_component_filtering;
 		int _min_component_size;
